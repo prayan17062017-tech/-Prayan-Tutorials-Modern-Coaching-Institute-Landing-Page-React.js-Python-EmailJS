@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #1e40af; /* Blue-800 */
+  --color-secondary: #3b82f6; /* Blue-500 */
+  --color-accent: #f59e0b; /* Amber-500 */
+  --color-glass: rgba(255, 255, 255, 0.7);
+  --color-glass-dark: rgba(0, 0, 0, 0.7);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply antialiased text-gray-900 bg-white dark:bg-gray-950 dark:text-white transition-colors duration-300;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-md bg-white/70 border border-white/20 shadow-lg;
+  }
+  .glass-dark {
+    @apply bg-gray-900 border border-white/10 shadow-lg;
+  }
+  .section-padding {
+    @apply py-16 md:py-24 px-6 md:px-12 lg:px-24;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl;
+  }
+
+  /* 3D Flip Card Styles */
+  .flip-card {
+    background-color: transparent;
+    width: 100%;
+    height: 400px;
+    perspective: 1000px;
+  }
+
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.8s;
+    transform-style: preserve-3d;
+  }
+
+  .flip-card:hover .flip-card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-card-front, .flip-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 1rem;
+  }
+
+  .flip-card-back {
+    transform: rotateY(180deg);
+  }
+
+  /* Center only the final CTA card in the Faculty grid on desktop/tablet */
+  .faculty-cta {
+    /* In the grid layouts (sm+), place this card in the middle column so it appears centered on the final row */
+    grid-column: span 1 / span 1;
+  }
+
+  @media (min-width: 640px) {
+    /* sm:grid-cols-2 */
+    .faculty-cta {
+      grid-column: 1 / span 1;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    /* lg:grid-cols-3 */
+    .faculty-cta {
+      grid-column: 2 / span 1;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    /* xl:grid-cols-4 */
+    .faculty-cta {
+      grid-column: 2 / span 1;
+    }
+  }
+}
