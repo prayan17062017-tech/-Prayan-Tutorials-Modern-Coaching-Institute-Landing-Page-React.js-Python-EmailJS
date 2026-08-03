@@ -67,3 +67,9 @@ Frontend will run at:
 - If you are using email/WhatsApp features, ensure the required environment variables are set (see `backend/config/config.py` and/or `README.md` for values).
 - If backend uses a SQLite database file, it will be created automatically (default: `./prayan.db`).
 
+
+
+>> cd backend
+>> python -m venv venv
+>> venv\Scripts\activate
+>> uvicorn main:app --reload
