@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from database.database import get_db
 from models.enquiry import Enquiry
 from schemas.enquiry import EnquiryCreate
-from utils.email import send_enquiry_email
+from utils.email import send_enquiry_emails
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/enquiry", tags=["Enquiry"])
 
+
 @router.post("")
-async def create_enquiry(
-    enquiry: EnquiryCreate, 
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+def create_enquiry(
+    enquiry: EnquiryCreate,
+    db: Session = Depends(get_db),
 ):
     try:
         db_enquiry = Enquiry(
@@ -23,16 +28,33 @@ async def create_enquiry(
             stream=enquiry.stream,
             course=enquiry.course,
             school=enquiry.school,
-            message=enquiry.message
+            message=enquiry.message,
         )
         db.add(db_enquiry)
         db.commit()
         db.refresh(db_enquiry)
-        
-        # Send email in background
-        background_tasks.add_task(send_enquiry_email, enquiry.dict())
-        
-        return {"status": "success", "message": "Enquiry submitted successfully"}
-    except Exception as e:
+    except Exception as error:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Failed to save enquiry")
+        raise HTTPException(status_code=500, detail="Unable to save your enquiry. Please try again.") from error
+
+    # Keep this synchronous so the API only reports success after both emails
+    # have been accepted by Gmail. The form can therefore show its existing
+    # success state without masking an SMTP failure.
+    try:
+        emails_sent = send_enquiry_emails(enquiry.model_dump())
+    except Exception:
+        logger.exception("Unexpected enquiry email error for saved enquiry %s", db_enquiry.id)
+        emails_sent = False
+
+    if not emails_sent:
+        logger.error(
+            "Enquiry %s was saved, but one or more enquiry emails could not be delivered",
+            db_enquiry.id,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="We could not send your enquiry right now. Please try again later.",
+        )
+
+    return {"status": "success", "message": "Enquiry submitted successfully"}

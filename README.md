@@ -36,12 +36,15 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
    ```bash
    pip install -r requirements.txt
    ```
-5. Create a `.env` file based on `config/config.py`:
+5. Create a `.env` file based on `backend/.env.example`:
    ```env
-   EMAIL_SENDER=your-email@gmail.com
-   EMAIL_PASSWORD=your-app-password
-   ADMIN_EMAIL=admin@prayantutorials.com
+   EMAIL_USER=prayan17062017@gmail.com
+   EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD
+   SMTP_SERVER=smtp.gmail.com
+   SMTP_PORT=587
+   ADMIN_EMAIL=prayan17062017@gmail.com
    ```
+   Use a Gmail App Password for `EMAIL_PASSWORD`; regular Gmail passwords are not accepted by Gmail SMTP. Keep these values server-side—the frontend must not use `VITE_EMAIL_USER` or `VITE_EMAIL_PASSWORD`. The backend sends both the admin notification and the student confirmation email.
 6. Run the server:
    ```bash
    uvicorn main:app --reload
@@ -86,4 +89,4 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
 - [x] Maps + QR Section
 - [x] Enquiry Form with Validation
 - [x] Responsive Design & Dark Mode
-- [x] WhatsApp & Email Integration
+- [x] WhatsApp & Gmail SMTP Integration

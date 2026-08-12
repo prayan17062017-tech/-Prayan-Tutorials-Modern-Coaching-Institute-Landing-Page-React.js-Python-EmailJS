@@ -65,7 +65,7 @@ const sections = [
           Our website may use the following third-party services to enhance functionality:
         </p>
         <ul className="space-y-2 mb-4">
-          {['EmailJS – for form submission and email delivery', 'Google Maps – for displaying our institute location', 'Google Reviews – for showcasing student testimonials', 'Hosting Platform – for website deployment and availability'].map((item) => (
+          {['Gmail SMTP – for enquiry email delivery', 'Google Maps – for displaying our institute location', 'Google Reviews – for showcasing student testimonials', 'Hosting Platform – for website deployment and availability'].map((item) => (
             <li key={item} className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
               <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
               {item}

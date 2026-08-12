@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, CheckCircle, Loader2, User, Phone, Mail, BookOpen, MessageCircle, School } from 'lucide-react';
-import { sendEnquiryEmail } from '../services/emailService';
+import { Send, CheckCircle, Loader2, User, Phone, Mail, MessageCircle, School } from 'lucide-react';
+import { submitEnquiry } from '../services/enquiryService';
 
 const schema = z.object({
   studentName: z.string().min(2, "Name must be at least 2 characters"),
@@ -25,6 +25,7 @@ const EnquiryForm = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const lastSubmitTime = useRef(0);
+  const submissionInFlight = useRef(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: zodResolver(schema),
@@ -41,11 +42,14 @@ const EnquiryForm = () => {
       return;
     }
 
+    // Guard against rapid repeated submit events before React re-renders the disabled button.
+    if (submissionInFlight.current) return;
+    submissionInFlight.current = true;
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
-      await sendEnquiryEmail(data);
+      await submitEnquiry(data);
       lastSubmitTime.current = Date.now();
       setShowSuccess(true);
       reset();
@@ -56,9 +60,10 @@ const EnquiryForm = () => {
         window.open(`https://wa.me/918291237037?text=${encodeURIComponent(waMessage)}`, '_blank');
       }, 3000);
     } catch (err) {
-      console.error('EmailJS submission failed', err);
+      console.error('Enquiry submission failed', err);
       setSubmitError(err.message || 'Submission failed. Please try again or call us directly.');
     } finally {
+      submissionInFlight.current = false;
       setIsSubmitting(false);
     }
   };
