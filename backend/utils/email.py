@@ -3,49 +3,25 @@ import logging
 import smtplib
 import ssl
 from datetime import datetime
-from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 from config.config import settings
 
 logger = logging.getLogger(__name__)
 
-# This is the existing publicly hosted project logo. Email clients cannot access
-# files from the server or a developer's local machine.
 LOGO_URL = "https://raw.githubusercontent.com/prayan17062017-tech/-Prayan-Tutorials-Modern-Coaching-Institute-Landing-Page-React.js-Python-EmailJS/main/frontend/src/assets/PRAYAN%20TUTORIALS%20logo.png"
-LOGO_CID = "prayan-tutorials-logo"
 CONTACT_PHONE_DISPLAY = "+91 82912 37037"
 CONTACT_PHONE_DIGITS = "918291237037"
 
 
 def _clean(value: object, max_length: int = 500) -> str:
-    """Normalize user input before placing it in an email body or subject."""
-    normalized = " ".join(str(value or "").split())
-    return normalized[:max_length]
+    return " ".join(str(value or "").split())[:max_length]
 
 
 def _html_value(value: object, max_length: int = 500) -> str:
     return html.escape(_clean(value, max_length) or "—")
-
-
-def _load_logo_bytes() -> bytes | None:
-    """Load the public logo once so it can be embedded inline for Gmail."""
-    try:
-        request = Request(LOGO_URL, headers={"User-Agent": "Prayan Tutorials email service"})
-        with urlopen(request, timeout=5) as response:
-            if response.headers.get_content_type() != "image/png":
-                raise ValueError(f"unexpected logo content type: {response.headers.get_content_type()}")
-            logo_bytes = response.read(2_000_000)
-
-        if not logo_bytes:
-            raise ValueError("logo response was empty")
-        return logo_bytes
-    except Exception:
-        logger.warning("Unable to inline the Prayan Tutorials logo; using the public URL fallback", exc_info=True)
-        return None
 
 
 def _row(label: str, value: object, max_length: int = 500) -> str:
@@ -56,7 +32,7 @@ def _row(label: str, value: object, max_length: int = 500) -> str:
     </tr>"""
 
 
-def _admin_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
+def _admin_html(d: dict, submitted_at: str) -> str:
     rows = (
         _row("Student Name", d.get("studentName"), 120)
         + _row("Parent Name", d.get("parentName"), 120)
@@ -80,8 +56,8 @@ def _admin_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
 
         <!-- Header -->
         <tr>
-          <td style="background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px;text-align:center;">
-            <img src="{logo_src}" alt="Prayan Tutorials logo" width="160" style="display:block;margin:0 auto 16px;max-width:160px;height:auto;">
+          <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:32px 40px;text-align:center;">
+            <img src="{LOGO_URL}" alt="Prayan Tutorials logo" width="160" style="display:block;margin:0 auto 16px;max-width:160px;height:auto;">
             <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:0.5px;">New Enquiry Received</h1>
             <p style="margin:8px 0 0;color:#bfdbfe;font-size:14px;">New Student Enquiry — Prayan Tutorials</p>
           </td>
@@ -130,7 +106,7 @@ def _admin_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
 </html>"""
 
 
-def _student_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
+def _student_html(d: dict, submitted_at: str) -> str:
     rows = (
         _row("Student Name", d.get("studentName"), 120)
         + _row("Parent Name", d.get("parentName"), 120)
@@ -151,8 +127,8 @@ def _student_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
 
         <!-- Header -->
         <tr>
-          <td style="background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:36px 40px;text-align:center;">
-            <img src="{logo_src}" alt="Prayan Tutorials logo" width="160" style="display:block;margin:0 auto 20px;max-width:160px;height:auto;">
+          <td style="background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 100%);padding:36px 40px;text-align:center;">
+            <img src="{LOGO_URL}" alt="Prayan Tutorials logo" width="160" style="display:block;margin:0 auto 20px;max-width:160px;height:auto;">
             <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;line-height:1.3;">Thank You for Choosing Prayan Tutorials!</h1>
             <p style="margin:10px 0 0;color:#bfdbfe;font-size:14px;">Your enquiry has been successfully received.</p>
           </td>
@@ -190,8 +166,7 @@ def _student_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
                   <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.5px;">Need immediate help?</p>
                   <p style="margin:0;font-size:14px;color:#1e293b;line-height:1.8;">
                     &#128222; Call / WhatsApp: <strong>{CONTACT_PHONE_DISPLAY}</strong><br>
-                    &#128140; Email: <strong>{settings.ADMIN_EMAIL}</strong><br>
-                    &#127760; Website: <strong>Prayan Tutorials enquiry form</strong>
+                    &#128140; Email: <strong>{settings.ADMIN_EMAIL}</strong>
                   </p>
                 </td>
               </tr>
@@ -224,122 +199,76 @@ def _student_html(d: dict, submitted_at: str, logo_src: str = LOGO_URL) -> str:
 </html>"""
 
 
-def _make_message(
-    from_addr: str,
-    to_addr: str,
-    reply_to: str,
-    subject: str,
-    html_body: str,
-    logo_bytes: bytes | None = None,
-) -> MIMEMultipart:
-    msg = MIMEMultipart("related")
+def _make_msg(from_addr: str, to_addr: str, reply_to: str, subject: str, html_body: str) -> MIMEMultipart:
+    msg = MIMEMultipart("alternative")
     msg["From"] = from_addr
     msg["To"] = to_addr
     msg["Reply-To"] = reply_to
     msg["Subject"] = subject
-
-    alternative = MIMEMultipart("alternative")
-    alternative.attach(MIMEText(html_body, "html", "utf-8"))
-    msg.attach(alternative)
-
-    if logo_bytes:
-        logo = MIMEImage(logo_bytes, _subtype="png")
-        logo.add_header("Content-ID", f"<{LOGO_CID}>")
-        logo.add_header("Content-Disposition", "inline", filename="prayan-tutorials-logo.png")
-        msg.attach(logo)
-
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
     return msg
 
 
-def send_enquiry_emails(enquiry_data: dict) -> bool:
-    """Send the admin notification and student confirmation as separate emails.
+def send_enquiry_emails(enquiry_data: dict) -> tuple[bool, str]:
+    """Send admin notification + student confirmation via Gmail SMTP.
 
-    The function returns False for any configuration, connection, authentication,
-    or individual-message failure so the API never reports a false success.
-    Individual message failures are logged to make partial delivery diagnosable.
+    Returns (success: bool, error_message: str).
     """
-    student_email = str(enquiry_data.get("email", "")).strip()
     if not settings.EMAIL_USER or not settings.EMAIL_PASSWORD:
-        logger.error("Gmail credentials are not configured; enquiry email delivery skipped for %s", student_email or "<missing email>")
-        return False
+        msg = "EMAIL_USER or EMAIL_PASSWORD is not configured."
+        logger.error(msg)
+        return False, msg
 
-    submitted_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p IST")
+    student_email = str(enquiry_data.get("email", "")).strip()
     student_name = _clean(enquiry_data.get("studentName"), 80)
-    logo_bytes = _load_logo_bytes()
-    logo_src = f"cid:{LOGO_CID}" if logo_bytes else LOGO_URL
-    admin_html = _admin_html(enquiry_data, submitted_at, logo_src)
-    student_html = _student_html(enquiry_data, submitted_at, logo_src)
+    submitted_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p IST")
+
     messages = [
         (
             "admin notification",
-            _make_message(
+            _make_msg(
                 settings.EMAIL_USER,
                 settings.ADMIN_EMAIL,
                 student_email,
                 f"New Student Enquiry — {student_name} | Prayan Tutorials",
-                admin_html,
-                logo_bytes,
+                _admin_html(enquiry_data, submitted_at),
             ),
         ),
         (
             "student confirmation",
-            _make_message(
+            _make_msg(
                 settings.EMAIL_USER,
                 student_email,
                 settings.ADMIN_EMAIL,
                 "Thank You for Choosing Prayan Tutorials! — Enquiry Received",
-                student_html,
-                logo_bytes,
+                _student_html(enquiry_data, submitted_at),
             ),
         ),
     ]
 
-    sent_labels = []
-    failed_labels = []
     try:
-        tls_context = ssl.create_default_context()
+        ctx = ssl.create_default_context()
         with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT) as server:
             server.ehlo()
-            server.starttls(context=tls_context)
+            server.starttls(context=ctx)
             server.ehlo()
             server.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
 
-            for label, message in messages:
+            for label, msg in messages:
                 try:
-                    refused_recipients = server.sendmail(
-                        settings.EMAIL_USER,
-                        [message["To"]],
-                        message.as_string(),
-                    )
-                    if refused_recipients:
-                        raise smtplib.SMTPRecipientsRefused(refused_recipients)
-                    sent_labels.append(label)
-                    logger.info("Sent %s to %s", label, message["To"])
+                    server.sendmail(settings.EMAIL_USER, [msg["To"]], msg.as_string())
+                    logger.info("Sent %s to %s", label, msg["To"])
                 except Exception:
-                    failed_labels.append(label)
-                    logger.exception("Failed to send %s to %s", label, message["To"])
+                    logger.exception("Failed to send %s to %s", label, msg["To"])
+
     except smtplib.SMTPAuthenticationError:
-        logger.error(
-            "Gmail SMTP authentication failed. Verify EMAIL_USER and the Gmail App Password in the deployment environment."
-        )
-        return False
+        logger.error("Gmail SMTP authentication failed — check EMAIL_USER and EMAIL_PASSWORD.")
+        return False, "SMTP authentication failed."
     except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, TimeoutError, OSError):
-        logger.exception(
-            "Gmail SMTP connection or timeout failed for enquiry from %s",
-            student_email or "<missing email>",
-        )
-        return False
+        logger.exception("Gmail SMTP connection failed.")
+        return False, "SMTP connection failed."
     except Exception:
-        logger.exception("Unexpected Gmail SMTP error for enquiry from %s", student_email or "<missing email>")
-        return False
+        logger.exception("Unexpected SMTP error.")
+        return False, "Unexpected email error."
 
-    if failed_labels:
-        logger.error(
-            "Enquiry email delivery incomplete for %s; sent=%s failed=%s",
-            student_email or "<missing email>",
-            sent_labels,
-            failed_labels,
-        )
-        return False
-
-    return True
+    return True, ""

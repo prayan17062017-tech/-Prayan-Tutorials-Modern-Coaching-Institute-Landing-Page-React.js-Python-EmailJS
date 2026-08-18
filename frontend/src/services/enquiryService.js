@@ -4,7 +4,7 @@ const REQUEST_TIMEOUT_MS = 30000;
 
 /**
  * Submit an enquiry to the FastAPI backend.
- * Gmail credentials stay on the server; the browser only sends form data.
+ * Credentials never touch the frontend — only form data is sent.
  */
 export async function submitEnquiry(formData) {
   const controller = new AbortController();
@@ -13,9 +13,7 @@ export async function submitEnquiry(formData) {
   try {
     const response = await fetch(ENQUIRY_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData),
       signal: controller.signal,
     });
@@ -28,10 +26,17 @@ export async function submitEnquiry(formData) {
     }
 
     if (!response.ok) {
+      // Backend returned 4xx/5xx — surface the detail message if present.
       const msg = result?.detail || result?.message;
       throw new Error(
         typeof msg === 'string' ? msg : 'Unable to submit your enquiry. Please try again.'
       );
+    }
+
+    // Guard against a 200 that carries success: false (should not happen with
+    // the current backend, but defensive check costs nothing).
+    if (result?.success === false) {
+      throw new Error(result.message || 'Enquiry submission failed. Please try again.');
     }
 
     return result;
@@ -39,7 +44,6 @@ export async function submitEnquiry(formData) {
     if (error.name === 'AbortError') {
       throw new Error('The submission timed out. Please check your connection and try again.');
     }
-
     throw error;
   } finally {
     window.clearTimeout(timeoutId);

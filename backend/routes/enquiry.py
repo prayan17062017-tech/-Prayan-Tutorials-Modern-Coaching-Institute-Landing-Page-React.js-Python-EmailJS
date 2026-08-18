@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database.database import get_db
@@ -13,16 +13,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/enquiry", tags=["Enquiry"])
 
 
-def _send_and_log(enquiry_data: dict) -> None:
-    success = send_enquiry_emails(enquiry_data)
-    if not success:
-        logger.error("One or more enquiry emails failed for %s", enquiry_data.get("email"))
-
-
 @router.post("")
 async def create_enquiry(
     enquiry: EnquiryCreate,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     try:
@@ -40,11 +33,20 @@ async def create_enquiry(
         db.add(db_enquiry)
         db.commit()
         db.refresh(db_enquiry)
-
-        background_tasks.add_task(_send_and_log, enquiry.model_dump())
-
-        return {"status": "success", "message": "Enquiry submitted successfully"}
     except Exception as error:
         db.rollback()
-        logger.exception("Failed to save enquiry")
-        raise HTTPException(status_code=500, detail="Unable to save your enquiry. Please try again.") from error
+        logger.exception("Failed to save enquiry to database")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to save your enquiry. Please try again.",
+        ) from error
+
+    success, error_msg = send_enquiry_emails(enquiry.model_dump())
+    if not success:
+        logger.error("Enquiry %s saved but email failed: %s", db_enquiry.id, error_msg)
+        raise HTTPException(
+            status_code=500,
+            detail="Enquiry was received, but email delivery failed. Please contact us directly.",
+        )
+
+    return {"success": True, "message": "Enquiry submitted successfully."}
