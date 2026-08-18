@@ -9,8 +9,8 @@ const Results = () => {
   const [activeTab, setActiveTab] = useState(0);
   const isPaused = useRef(false);
   const tabs = [
-    { title: "HSC Results 2025", icon: Award },
-    { title: "MHT-CET Results 2025", icon: Trophy },
+    { title: "HSC Shining Results", icon: Award },
+    { title: "MHT-CET Shining Results", icon: Trophy },
     { title: "Subject Wise Toppers", icon: Star }
   ];
 

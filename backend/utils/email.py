@@ -298,7 +298,7 @@ def send_enquiry_emails(enquiry_data: dict) -> bool:
     failed_labels = []
     try:
         tls_context = ssl.create_default_context()
-        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=20) as server:
+        with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=settings.SMTP_TIMEOUT) as server:
             server.ehlo()
             server.starttls(context=tls_context)
             server.ehlo()
@@ -318,8 +318,19 @@ def send_enquiry_emails(enquiry_data: dict) -> bool:
                 except Exception:
                     failed_labels.append(label)
                     logger.exception("Failed to send %s to %s", label, message["To"])
+    except smtplib.SMTPAuthenticationError:
+        logger.error(
+            "Gmail SMTP authentication failed. Verify EMAIL_USER and the Gmail App Password in the deployment environment."
+        )
+        return False
+    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, TimeoutError, OSError):
+        logger.exception(
+            "Gmail SMTP connection or timeout failed for enquiry from %s",
+            student_email or "<missing email>",
+        )
+        return False
     except Exception:
-        logger.exception("Gmail SMTP connection failed for enquiry from %s", student_email or "<missing email>")
+        logger.exception("Unexpected Gmail SMTP error for enquiry from %s", student_email or "<missing email>")
         return False
 
     if failed_labels:

@@ -28,8 +28,9 @@ export async function submitEnquiry(formData) {
     }
 
     if (!response.ok) {
+      const msg = result?.detail || result?.message;
       throw new Error(
-        result?.detail || result?.message || 'Unable to submit your enquiry. Please try again.'
+        typeof msg === 'string' ? msg : 'Unable to submit your enquiry. Please try again.'
       );
     }
 

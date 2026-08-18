@@ -78,7 +78,15 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
 2. Create a new Web Service on Render.
 3. Use Build Command: `pip install -r requirements.txt`.
 4. Use Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-5. Add Environment Variables.
+5. Add these backend environment variables in Render (or your hosting provider):
+   - `EMAIL_USER=prayan17062017@gmail.com`
+   - `EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD`
+   - `ADMIN_EMAIL=prayan17062017@gmail.com`
+   - `SMTP_SERVER=smtp.gmail.com`
+   - `SMTP_PORT=587`
+   - `SMTP_TIMEOUT=8`
+
+   Keep `EMAIL_PASSWORD` server-side only. Do not add it to the frontend environment or use a normal Gmail password.
 
 ## Features Checklist
 - [x] Hero Section with animated counters

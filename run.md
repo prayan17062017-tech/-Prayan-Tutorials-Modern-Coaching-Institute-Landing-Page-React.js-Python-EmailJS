@@ -64,8 +64,9 @@ Frontend will run at:
 
 ## Notes
 
-- If you are using email/WhatsApp features, ensure the required environment variables are set (see `backend/config/config.py` and/or `README.md` for values).
-- If backend uses a SQLite database file, it will be created automatically (default: `./prayan.db`).
+- If you are using email/WhatsApp features, ensure the required environment variables are set (see `backend/.env.example` and/or `README.md` for values).
+- Restart FastAPI after changing `backend/.env`; settings are loaded when the process starts.
+- If backend uses SQLite, the default database is `backend/prayan.db` regardless of the terminal's current directory.
 
 
 
