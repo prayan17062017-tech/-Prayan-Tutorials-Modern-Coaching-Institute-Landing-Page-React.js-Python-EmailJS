@@ -9,26 +9,38 @@ DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_DIR / 'prayan.db').as_posix()}"
 load_dotenv(BACKEND_DIR / ".env")
 
 
-def _email_password() -> str:
-    pw = os.getenv("EMAIL_PASSWORD", "").replace(" ", "").strip()
-    return "" if pw.upper() in {"YOUR_GMAIL_APP_PASSWORD", "YOUR_APP_PASSWORD", ""} else pw
+def _get_email_password() -> str:
+    """Read and normalize the server-only Gmail App Password."""
+    # Google displays App Passwords in groups; whitespace is not part of the credential.
+    password = os.getenv("EMAIL_PASSWORD", "").replace(" ", "").strip()
+    if password.upper() in {"YOUR_GMAIL_APP_PASSWORD", "YOUR_APP_PASSWORD"}:
+        return ""
+    return password
+
+
+def _get_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Prayan Tutorials API"
     DATABASE_URL: str = os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL)
 
-    # ── Gmail SMTP ─────────────────────────────────────────────────────────
-    EMAIL_USER: str = os.getenv("EMAIL_USER", "").strip()
-    EMAIL_PASSWORD: str = _email_password()
-    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    # Gmail SMTP only. Credentials stay on the backend and are never sent to React.
+    EMAIL_USER: str = os.getenv("EMAIL_USER", "prayan17062017@gmail.com").strip()
+    EMAIL_PASSWORD: str = _get_email_password()
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com").strip()
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
-    SMTP_TIMEOUT: int = int(os.getenv("SMTP_TIMEOUT", 10))
+    SMTP_TIMEOUT: int = int(os.getenv("SMTP_TIMEOUT", 5))
+    SMTP_USE_SSL: bool = _get_bool("SMTP_USE_SSL", SMTP_PORT == 465)
 
-    # ── Admin / contact ────────────────────────────────────────────────────
-    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "prayan17062017@gmail.com")
+    # Admin / contact
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "prayan17062017@gmail.com").strip()
 
-    # ── Google Maps ────────────────────────────────────────────────────────
+    # Google Maps
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     GOOGLE_PLACE_ID: str = os.getenv("GOOGLE_PLACE_ID", "ChIJy4_W7XKV5zsRZXCjtqMhSWc")
     GOOGLE_MAPS_URL: str = os.getenv(

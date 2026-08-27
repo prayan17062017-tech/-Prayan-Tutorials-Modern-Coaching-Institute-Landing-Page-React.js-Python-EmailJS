@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/enquiry", tags=["Enquiry"])
 
 
 @router.post("")
-async def create_enquiry(
+def create_enquiry(
     enquiry: EnquiryCreate,
     db: Session = Depends(get_db),
 ):
@@ -43,10 +43,10 @@ async def create_enquiry(
 
     success, error_msg = send_enquiry_emails(enquiry.model_dump())
     if not success:
-        logger.error("Enquiry %s saved but email failed: %s", db_enquiry.id, error_msg)
+        logger.error("Enquiry %s saved but SMTP delivery failed: %s", db_enquiry.id, error_msg)
         raise HTTPException(
-            status_code=500,
-            detail="Enquiry was received, but email delivery failed. Please contact us directly.",
+            status_code=503,
+            detail="Enquiry was received, but SMTP email delivery failed. Please try again later.",
         )
 
     return {"success": True, "message": "Enquiry submitted successfully."}

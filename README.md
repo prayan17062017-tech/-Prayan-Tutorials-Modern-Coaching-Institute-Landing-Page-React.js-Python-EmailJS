@@ -42,6 +42,8 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
    EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD
    SMTP_SERVER=smtp.gmail.com
    SMTP_PORT=587
+   SMTP_TIMEOUT=5
+   SMTP_USE_SSL=false
    ADMIN_EMAIL=prayan17062017@gmail.com
    ```
    Use a Gmail App Password for `EMAIL_PASSWORD`; regular Gmail passwords are not accepted by Gmail SMTP. Keep these values server-side—the frontend must not use `VITE_EMAIL_USER` or `VITE_EMAIL_PASSWORD`. The backend sends both the admin notification and the student confirmation email.
@@ -83,8 +85,9 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
    - `EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD`
    - `ADMIN_EMAIL=prayan17062017@gmail.com`
    - `SMTP_SERVER=smtp.gmail.com`
-   - `SMTP_PORT=587`
-   - `SMTP_TIMEOUT=8`
+   - `SMTP_PORT=587` (or `465` with implicit SSL)
+   - `SMTP_TIMEOUT=5`
+   - `SMTP_USE_SSL=false` (set `true` when using port `465`)
 
    Keep `EMAIL_PASSWORD` server-side only. Do not add it to the frontend environment or use a normal Gmail password.
 

@@ -64,13 +64,21 @@ Frontend will run at:
 
 ## Notes
 
-- If you are using email/WhatsApp features, ensure the required environment variables are set (see `backend/.env.example` and/or `README.md` for values).
+- If you are using email/WhatsApp features, set `EMAIL_USER`, `EMAIL_PASSWORD`, `ADMIN_EMAIL`, `SMTP_SERVER`, `SMTP_PORT`, `SMTP_TIMEOUT`, and `SMTP_USE_SSL` in `backend/.env` (see `backend/.env.example`).
+- `EMAIL_PASSWORD` must be a Gmail App Password, not the normal Gmail password.
 - Restart FastAPI after changing `backend/.env`; settings are loaded when the process starts.
 - If backend uses SQLite, the default database is `backend/prayan.db` regardless of the terminal's current directory.
 
 
 
->> cd backend
->> python -m venv venv
->> venv\Scripts\activate
->> uvicorn main:app --reload
+ cd backend
+ python -m venv venv
+ venv\Scripts\activate
+ uvicorn main:app --reload
+
+ Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+EnquiryForm.jsx:63 Enquiry submission failed Error: Enquiry was received, but SMTP email delivery failed. Please try again later.
+    at submitEnquiry (enquiryService.js:31:13)
+    at async onSubmit (EnquiryForm.jsx:52:7)
+    at async chunk-V5AJRIDV.js?v=da38cde8:1860:9
+(anonymous) @ EnquiryForm.jsx:63

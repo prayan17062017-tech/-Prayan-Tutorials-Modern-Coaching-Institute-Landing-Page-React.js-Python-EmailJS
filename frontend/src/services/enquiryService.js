@@ -1,6 +1,6 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const ENQUIRY_ENDPOINT = `${API_BASE_URL}/api/enquiry`;
-const REQUEST_TIMEOUT_MS = 30000;
+const REQUEST_TIMEOUT_MS = 45000;
 
 /**
  * Submit an enquiry to the FastAPI backend.
