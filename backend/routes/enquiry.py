@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from database.database import get_db
@@ -44,9 +45,9 @@ def create_enquiry(
     success, error_msg = send_enquiry_emails(enquiry.model_dump())
     if not success:
         logger.error("Enquiry %s saved but SMTP delivery failed: %s", db_enquiry.id, error_msg)
-        return {
-            "success": True,
-            "message": "Enquiry received. Email delivery is delayed — our team will contact you shortly.",
-        }
+        return JSONResponse(
+            status_code=503,
+            content={"success": False, "message": "Unable to send enquiry email. Please try again later."},
+        )
 
     return {"success": True, "message": "Enquiry submitted successfully."}

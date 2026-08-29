@@ -1,6 +1,9 @@
 # Environment variables — never commit real credentials
 .env
-.env.*
+.env.local
+.env.*.local
+# .env.production is safe to commit (contains only the public backend URL, no secrets)
+!.env.production
 !.env.example
 
 # Python
