@@ -13,23 +13,28 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Prayan Tutorials API")
 
-# CORS — allow the deployed frontend origin plus localhost for development.
+# CORS — production frontend origin is hard-coded so Render works even if
+# FRONTEND_URL env var is not set. Add FRONTEND_URL to override or extend.
+_PRODUCTION_FRONTEND = "https://prayan-tutorials-modern-coaching-8qu6.onrender.com"
 _frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
-_allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
-if _frontend_url:
+
+_allowed_origins = [
+    _PRODUCTION_FRONTEND,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+]
+if _frontend_url and _frontend_url not in _allowed_origins:
     _allowed_origins.append(_frontend_url)
-else:
-    logger.warning(
-        "FRONTEND_URL is not set. CORS will only allow localhost origins. "
-        "Set FRONTEND_URL=https://your-app.vercel.app in Render environment variables."
-    )
+
+logger.info("CORS allowed origins: %s", _allowed_origins)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
 # Include Routes
