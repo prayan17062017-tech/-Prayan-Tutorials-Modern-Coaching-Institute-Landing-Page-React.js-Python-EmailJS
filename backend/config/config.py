@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     EMAIL_PASSWORD: str = _get_email_password()
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "smtp.gmail.com").strip()
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", 587))
-    SMTP_TIMEOUT: int = int(os.getenv("SMTP_TIMEOUT", 5))
+    SMTP_TIMEOUT: int = int(os.getenv("SMTP_TIMEOUT", 15))
     SMTP_USE_SSL: bool = _get_bool("SMTP_USE_SSL", SMTP_PORT == 465)
 
     # Admin / contact

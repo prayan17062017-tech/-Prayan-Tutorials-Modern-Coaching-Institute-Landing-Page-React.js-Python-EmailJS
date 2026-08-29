@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import engine, Base
@@ -8,10 +10,15 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Prayan Tutorials API")
 
-# CORS Configuration
+# CORS — allow the deployed frontend origin plus localhost for development.
+_frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+_allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+if _frontend_url:
+    _allowed_origins.append(_frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, specify frontend URL
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
