@@ -5,54 +5,25 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
 ## Tech Stack
 
 - **Frontend:** React, Tailwind CSS v4, Framer Motion, Swiper.js, AOS, React Icons.
-- **Backend:** Python FastAPI, SQLAlchemy, SQLite.
+- **Serverless API:** Python (Vercel Serverless Function) — handles email via Gmail SMTP.
 - **Features:** Glassmorphism, 3D Flip Cards, Auto-switching Results, Enquiry Form with Email & WhatsApp integration.
 
 ## Project Structure
 
 ```
 .
-├── frontend/          # React + Vite + Tailwind v4
-├── backend/           # FastAPI + SQLAlchemy + SQLite
+├── frontend/
+│   ├── api/
+│   │   └── enquiry.py     # Vercel Python serverless function (email sending)
+│   ├── src/               # React + Vite + Tailwind v4
+│   ├── vercel.json        # Vercel routing config
+│   └── ...
 └── README.md
 ```
 
 ## Setup Instructions
 
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   ```
-3. Activate the virtual environment:
-   - Windows: `.\venv\Scripts\activate`
-   - Unix/macOS: `source venv/bin/activate`
-4. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-5. Create a `.env` file based on `backend/.env.example`:
-   ```env
-   EMAIL_USER=prayan17062017@gmail.com
-   EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD
-   SMTP_SERVER=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_TIMEOUT=5
-   SMTP_USE_SSL=false
-   ADMIN_EMAIL=prayan17062017@gmail.com
-   ```
-   Use a Gmail App Password for `EMAIL_PASSWORD`; regular Gmail passwords are not accepted by Gmail SMTP. Keep these values server-side—the frontend must not use `VITE_EMAIL_USER` or `VITE_EMAIL_PASSWORD`. The backend sends both the admin notification and the student confirmation email.
-6. Run the server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-### Frontend Setup
+### Frontend + API Setup (All-in-One)
 
 1. Navigate to the frontend directory:
    ```bash
@@ -62,34 +33,40 @@ A premium, modern, fully responsive educational landing page for "Prayan Tutoria
    ```bash
    npm install
    ```
-3. Run the development server:
+3. Install Vercel CLI globally (needed for local dev with serverless functions):
+   ```bash
+   npm install -g vercel
+   ```
+4. Add environment variables in Vercel Dashboard (or create a `.env.local` for local dev):
+   ```env
+   EMAIL_USER=prayan17062017@gmail.com
+   EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD
+   ADMIN_EMAIL=prayan17062017@gmail.com
+   SMTP_SERVER=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_TIMEOUT=15
+   SMTP_USE_SSL=false
+   ```
+   Use a Gmail App Password for `EMAIL_PASSWORD` (16 chars, no spaces).
+
+5. Run locally with Vercel CLI (serves React + `/api/enquiry` together):
+   ```bash
+   vercel dev
+   ```
+   Or run just the React app (form will fail without the API):
    ```bash
    npm run dev
    ```
 
-## Deployment Guides
+## Deployment (Vercel)
 
-### Frontend (Vercel)
 1. Push the `frontend` folder to GitHub.
 2. Link the repository to Vercel.
-3. Set the Root Directory to `frontend`.
-4. Add environment variables if any.
-
-### Backend (Render)
-1. Push the `backend` folder to GitHub.
-2. Create a new Web Service on Render.
-3. Use Build Command: `pip install -r requirements.txt`.
-4. Use Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-5. Add these backend environment variables in Render (or your hosting provider):
-   - `EMAIL_USER=prayan17062017@gmail.com`
-   - `EMAIL_PASSWORD=YOUR_GMAIL_APP_PASSWORD`
-   - `ADMIN_EMAIL=prayan17062017@gmail.com`
-   - `SMTP_SERVER=smtp.gmail.com`
-   - `SMTP_PORT=587` (or `465` with implicit SSL)
-   - `SMTP_TIMEOUT=5`
-   - `SMTP_USE_SSL=false` (set `true` when using port `465`)
-
-   Keep `EMAIL_PASSWORD` server-side only. Do not add it to the frontend environment or use a normal Gmail password.
+3. Set the **Root Directory** to `frontend`.
+4. Add the environment variables above in Vercel → Settings → Environment Variables.
+5. Deploy — Vercel automatically serves:
+   - React app at `/`
+   - Python serverless function at `/api/enquiry`
 
 ## Features Checklist
 - [x] Hero Section with animated counters
