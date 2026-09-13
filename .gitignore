@@ -6,6 +6,12 @@
 !.env.production
 !.env.example
 
+# Google OAuth credential files — NEVER commit these
+client_secret.json
+client_secret*.json
+token.json
+token*.json
+
 # Python
 __pycache__/
 *.py[cod]

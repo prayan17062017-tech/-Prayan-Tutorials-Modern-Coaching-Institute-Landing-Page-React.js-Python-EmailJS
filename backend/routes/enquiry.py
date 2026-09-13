@@ -19,6 +19,8 @@ def create_enquiry(
     enquiry: EnquiryCreate,
     db: Session = Depends(get_db),
 ):
+    logger.info("[ENQUIRY] Received enquiry from %s", enquiry.email)
+
     try:
         db_enquiry = Enquiry(
             student_name=enquiry.studentName,
@@ -34,9 +36,10 @@ def create_enquiry(
         db.add(db_enquiry)
         db.commit()
         db.refresh(db_enquiry)
+        logger.info("[ENQUIRY] Saved to database with id=%s", db_enquiry.id)
     except Exception as error:
         db.rollback()
-        logger.exception("Failed to save enquiry to database")
+        logger.exception("[ENQUIRY] Failed to save enquiry to database")
         raise HTTPException(
             status_code=500,
             detail="Unable to save your enquiry. Please try again.",
@@ -44,10 +47,11 @@ def create_enquiry(
 
     success, error_msg = send_enquiry_emails(enquiry.model_dump())
     if not success:
-        logger.error("Enquiry %s saved but SMTP delivery failed: %s", db_enquiry.id, error_msg)
+        logger.error("[ENQUIRY] Email delivery failed for id=%s: %s", db_enquiry.id, error_msg)
         return JSONResponse(
-            status_code=503,
-            content={"success": False, "message": "Unable to send enquiry email. Please try again later."},
+            status_code=502,
+            content={"success": False, "message": error_msg},
         )
 
+    logger.info("[ENQUIRY] Completed successfully for id=%s", db_enquiry.id)
     return {"success": True, "message": "Enquiry submitted successfully."}
