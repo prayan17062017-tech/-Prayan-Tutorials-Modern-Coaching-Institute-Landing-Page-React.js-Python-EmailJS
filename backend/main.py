@@ -53,19 +53,18 @@ async def health():
 
 
 @app.on_event("startup")
-async def _log_gmail_config():
-    """Log Gmail API config status at startup (no credentials logged)."""
+async def _log_email_config():
+    """Log SMTP config status at startup (password never logged)."""
     from config.config import settings
     logger.info(
-        "[STARTUP] Gmail API config — client_id_set=%s secret_set=%s refresh_token_set=%s sender=%s",
-        bool(settings.GMAIL_CLIENT_ID),
-        bool(settings.GMAIL_CLIENT_SECRET),
-        bool(settings.GMAIL_REFRESH_TOKEN),
-        settings.GMAIL_SENDER_EMAIL,
+        "[STARTUP] SMTP config — user=%s server=%s port=%s password_set=%s",
+        settings.EMAIL_USER,
+        settings.SMTP_SERVER,
+        settings.SMTP_PORT,
+        bool(settings.EMAIL_PASSWORD),
     )
-    if not all([settings.GMAIL_CLIENT_ID, settings.GMAIL_CLIENT_SECRET,
-                settings.GMAIL_REFRESH_TOKEN]):
+    if not settings.EMAIL_PASSWORD:
         logger.error(
-            "[STARTUP] Gmail API credentials incomplete — "
-            "set GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN in Render env vars."
+            "[STARTUP] EMAIL_PASSWORD not set — "
+            "set EMAIL_PASSWORD (Gmail App Password) in environment variables."
         )

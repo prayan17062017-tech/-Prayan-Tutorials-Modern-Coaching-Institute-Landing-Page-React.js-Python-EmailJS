@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_DIR / 'prayan.db').as_posix()}"
-load_dotenv(BACKEND_DIR / ".env")
+load_dotenv(BACKEND_DIR / ".env", override=True)
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,11 @@ class Settings:
     PROJECT_NAME: str = "Prayan Tutorials API"
     DATABASE_URL: str = _str("DATABASE_URL") or DEFAULT_DATABASE_URL
 
-    # Gmail API OAuth2 credentials — server-side only, never sent to the frontend.
-    GMAIL_CLIENT_ID: str = _str("GMAIL_CLIENT_ID")
-    GMAIL_CLIENT_SECRET: str = _str("GMAIL_CLIENT_SECRET")
-    GMAIL_REFRESH_TOKEN: str = _str("GMAIL_REFRESH_TOKEN")
-    GMAIL_SENDER_EMAIL: str = _str("GMAIL_SENDER_EMAIL", "prayan17062017@gmail.com")
+    # SMTP credentials (Gmail App Password) — server-side only.
+    EMAIL_USER: str = _str("EMAIL_USER", "prayan17062017@gmail.com")
+    EMAIL_PASSWORD: str = _str("EMAIL_PASSWORD")
+    SMTP_SERVER: str = _str("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT: int = _int("SMTP_PORT", 587)
 
     # Admin / contact
     ADMIN_EMAIL: str = _str("ADMIN_EMAIL", "prayan17062017@gmail.com")

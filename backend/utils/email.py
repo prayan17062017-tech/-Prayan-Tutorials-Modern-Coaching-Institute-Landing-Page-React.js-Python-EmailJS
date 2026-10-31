@@ -1,15 +1,10 @@
-import base64
 import html
 import logging
+import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
-
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request as GoogleAuthRequest
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 from config.config import settings
 
@@ -46,25 +41,14 @@ def _row(label: str, value: object, max_length: int = 500) -> str:
     )
 
 
-# ── Gmail API auth ─────────────────────────────────────────────────────────
+# ── SMTP send ──────────────────────────────────────────────────────────────
 
-def _get_gmail_service():
-    """Build an authenticated Gmail API service using the stored refresh token."""
-    creds = Credentials(
-        token=None,
-        refresh_token=settings.GMAIL_REFRESH_TOKEN,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=settings.GMAIL_CLIENT_ID,
-        client_secret=settings.GMAIL_CLIENT_SECRET,
-        scopes=["https://www.googleapis.com/auth/gmail.send"],
-    )
-    creds.refresh(GoogleAuthRequest())
-    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+_SMTP_TIMEOUT_S = 20
 
 
-def _send_via_gmail_api(service, from_addr: str, to_addr: str, subject: str,
-                         html_body: str, reply_to: str) -> None:
-    """Encode and send a single HTML email through the Gmail API."""
+def _send_via_smtp(from_addr: str, to_addr: str, subject: str,
+                   html_body: str, reply_to: str) -> None:
+    """Send a single HTML email via Gmail SMTP (STARTTLS, App Password)."""
     msg = MIMEMultipart("alternative")
     msg["From"] = from_addr
     msg["To"] = to_addr
@@ -72,8 +56,13 @@ def _send_via_gmail_api(service, from_addr: str, to_addr: str, subject: str,
     msg["Reply-To"] = reply_to
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT,
+                      timeout=_SMTP_TIMEOUT_S) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        smtp.login(settings.EMAIL_USER, settings.EMAIL_PASSWORD)
+        smtp.sendmail(from_addr, to_addr, msg.as_string())
 
 
 # ── HTML templates ─────────────────────────────────────────────────────────
@@ -266,47 +255,33 @@ def _student_html(d: dict, submitted_at: str) -> str:
 # ── public API ─────────────────────────────────────────────────────────────
 
 def send_enquiry_emails(enquiry_data: dict) -> tuple[bool, str]:
-    """Send admin notification + student confirmation via Gmail API over HTTPS.
+    """Send admin notification + student confirmation via Gmail SMTP.
 
     Returns (success, safe_error_message). Credentials are never logged or
     included in the returned error string.
     """
     student_email = str(enquiry_data.get("email", "")).strip()
-    student_name = _clean(enquiry_data.get("studentName"), 80)
 
-    if not all([settings.GMAIL_CLIENT_ID, settings.GMAIL_CLIENT_SECRET,
-                settings.GMAIL_REFRESH_TOKEN]):
+    if not all([settings.EMAIL_USER, settings.EMAIL_PASSWORD]):
         logger.error(
-            "[EMAIL] Gmail API credentials not configured "
-            "(GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN missing)"
+            "[EMAIL] SMTP credentials not configured "
+            "(EMAIL_USER / EMAIL_PASSWORD missing in environment)"
         )
         return False, "Email service is not configured. Please contact us directly."
 
     submitted_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p IST")
 
-    try:
-        logger.info("[EMAIL] Authenticating with Gmail API")
-        service = _get_gmail_service()
-    except Exception:
-        logger.exception("[EMAIL] Gmail API authentication failed")
-        return False, "Email authentication failed. Please try again later."
-
     # Admin notification
     try:
         logger.info("[EMAIL] Sending admin email to %s", settings.ADMIN_EMAIL)
-        _send_via_gmail_api(
-            service,
-            from_addr=settings.GMAIL_SENDER_EMAIL,
+        _send_via_smtp(
+            from_addr=settings.EMAIL_USER,
             to_addr=settings.ADMIN_EMAIL,
-            subject=f"New Student Enquiry - Prayan Tutorials",
+            subject="New Student Enquiry - Prayan Tutorials",
             html_body=_admin_html(enquiry_data, submitted_at),
             reply_to=student_email,
         )
         logger.info("[EMAIL] Admin email sent successfully")
-    except HttpError as exc:
-        logger.error("[EMAIL] Gmail API rejected admin email: status=%s reason=%s",
-                     exc.status_code, exc.reason)
-        return False, "Email delivery failed. Please try again later."
     except Exception:
         logger.exception("[EMAIL] Unexpected error sending admin email")
         return False, "Email delivery failed. Please try again later."
@@ -315,9 +290,8 @@ def send_enquiry_emails(enquiry_data: dict) -> tuple[bool, str]:
     if student_email:
         try:
             logger.info("[EMAIL] Sending student confirmation to %s", student_email)
-            _send_via_gmail_api(
-                service,
-                from_addr=settings.GMAIL_SENDER_EMAIL,
+            _send_via_smtp(
+                from_addr=settings.EMAIL_USER,
                 to_addr=student_email,
                 subject="Thank You for Contacting Prayan Tutorials",
                 html_body=_student_html(enquiry_data, submitted_at),
