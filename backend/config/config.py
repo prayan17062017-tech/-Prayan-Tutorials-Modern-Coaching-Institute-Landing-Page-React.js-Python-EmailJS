@@ -8,7 +8,6 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE_URL = f"sqlite:///{(BACKEND_DIR / 'prayan.db').as_posix()}"
 load_dotenv(BACKEND_DIR / ".env", override=True)
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,16 +27,19 @@ class Settings:
     PROJECT_NAME: str = "Prayan Tutorials API"
     DATABASE_URL: str = _str("DATABASE_URL") or DEFAULT_DATABASE_URL
 
-    # SMTP credentials (Gmail App Password) — server-side only.
+    # ── SMTP (Gmail App Password) — server-side only, never logged ──────────
     EMAIL_USER: str = _str("EMAIL_USER", "prayan17062017@gmail.com")
-    EMAIL_PASSWORD: str = _str("EMAIL_PASSWORD")
+    EMAIL_PASSWORD: str = _str("EMAIL_PASSWORD")        # Gmail App Password
     SMTP_SERVER: str = _str("SMTP_SERVER", "smtp.gmail.com")
     SMTP_PORT: int = _int("SMTP_PORT", 587)
 
-    # Admin / contact
+    # Explicit override: set SMTP_BLOCKED=true on Render to skip SMTP probe
+    SMTP_BLOCKED: bool = _str("SMTP_BLOCKED", "false").lower() == "true"
+
+    # ── Admin / contact ──────────────────────────────────────────────────────
     ADMIN_EMAIL: str = _str("ADMIN_EMAIL", "prayan17062017@gmail.com")
 
-    # Google Maps
+    # ── Google Maps ──────────────────────────────────────────────────────────
     GOOGLE_API_KEY: str = _str("GOOGLE_API_KEY")
     GOOGLE_PLACE_ID: str = _str("GOOGLE_PLACE_ID", "ChIJy4_W7XKV5zsRZXCjtqMhSWc")
     GOOGLE_MAPS_URL: str = _str(
@@ -46,6 +48,9 @@ class Settings:
         "/data=!4m8!3m7!1s0x3be79572edd68f4b:0x674921a3b6937f65!8m2!3d19.2202854"
         "!4d73.0884956!9m1!1b1!16s%2Fg%2F11f016lznz?entry=ttu",
     )
+
+    # ── Frontend URL (for CORS) ──────────────────────────────────────────────
+    FRONTEND_URL: str = _str("FRONTEND_URL", "")
 
 
 settings = Settings()

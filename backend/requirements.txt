@@ -1,42 +1,28 @@
-aiosqlite==0.22.1
-annotated-types==0.7.0
-anyio==4.13.0
-cachetools==5.5.2
-certifi==2026.6.17
-charset-normalizer==3.5.1
-click==8.4.1
-colorama==0.4.6
-dnspython==2.8.0
-email-validator==2.3.0
+# Prayan Tutorials Backend — Python dependencies
+# Install: pip install -r requirements.txt
+# Render build command: pip install -r requirements.txt
+# Render start command: uvicorn main:app --host 0.0.0.0 --port $PORT
+
+# Web framework
 fastapi==0.136.3
-google-api-python-client==2.172.0
-google-auth==2.40.3
-google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.1
-greenlet==3.5.1
-h11==0.16.0
-httpcore==1.0.9
-httplib2==0.22.0
-httptools==0.8.0
-httpx==0.28.1
-idna==3.18
-oauthlib==3.2.2
+uvicorn[standard]==0.34.0
+
+# Data validation
 pydantic==2.13.4
-pydantic_core==2.46.4
-pyasn1==0.6.1
-pyasn1-modules==0.4.2
-python-dotenv==1.2.2
-python-multipart==0.0.32
-PyYAML==6.0.3
-requests==2.34.2
-requests-oauthlib==2.0.0
-rsa==4.9.1
+pydantic-settings==2.9.1
+email-validator==2.3.0
+
+# Database (SQLite via SQLAlchemy)
 SQLAlchemy==2.0.50
-starlette==1.3.1
-typing_extensions==4.15.0
+
+# Environment variables
+python-dotenv==1.2.2
+
+# Timezone support (Python 3.9+ backport for zoneinfo)
 tzdata==2026.3
-uritemplate==4.1.1
-urllib3==2.7.0
-uvicorn==0.49.0
-watchfiles==1.2.0
-websockets==16.0
+
+# HTTP client (for Google Maps Reviews API)
+httpx==0.28.1
+
+# Form/multipart support (FastAPI optional dep)
+python-multipart==0.0.32

@@ -1,6 +1,25 @@
+"""
+Email delivery utility for Prayan Tutorials enquiry system.
+
+Delivery strategy:
+  1. Primary  → SMTP (Gmail App Password, TLS on port 587)
+  2. No EmailJS on the backend — EmailJS is handled on the frontend.
+
+Each email (admin notification + student auto-reply) is tracked
+individually so a partial success on one does not cause a duplicate
+on the other.
+
+RENDER NOTE: Render free tier blocks outbound SMTP on port 587.
+If SMTP_BLOCKED=true is set in env, the backend gracefully reports
+the limitation without retrying.
+"""
+from __future__ import annotations
+
 import html
 import logging
+import os
 import smtplib
+import socket
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -10,6 +29,8 @@ from config.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ── Constants ──────────────────────────────────────────────────────────────
+
 LOGO_URL = (
     "https://raw.githubusercontent.com/prayan17062017-tech/"
     "-Prayan-Tutorials-Modern-Coaching-Institute-Landing-Page-React.js-Python-EmailJS"
@@ -18,8 +39,10 @@ LOGO_URL = (
 CONTACT_PHONE_DISPLAY = "+91 82912 37037"
 CONTACT_PHONE_DIGITS = "918291237037"
 
+_SMTP_TIMEOUT_S = 20
 
-# ── helpers ────────────────────────────────────────────────────────────────
+
+# ── Helpers ────────────────────────────────────────────────────────────────
 
 def _clean(value: object, max_length: int = 500) -> str:
     return " ".join(str(value or "").split())[:max_length]
@@ -43,11 +66,13 @@ def _row(label: str, value: object, max_length: int = 500) -> str:
 
 # ── SMTP send ──────────────────────────────────────────────────────────────
 
-_SMTP_TIMEOUT_S = 20
-
-
-def _send_via_smtp(from_addr: str, to_addr: str, subject: str,
-                   html_body: str, reply_to: str) -> None:
+def _send_via_smtp(
+    from_addr: str,
+    to_addr: str,
+    subject: str,
+    html_body: str,
+    reply_to: str,
+) -> None:
     """Send a single HTML email via Gmail SMTP (STARTTLS, App Password)."""
     msg = MIMEMultipart("alternative")
     msg["From"] = from_addr
@@ -56,8 +81,9 @@ def _send_via_smtp(from_addr: str, to_addr: str, subject: str,
     msg["Reply-To"] = reply_to
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    with smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT,
-                      timeout=_SMTP_TIMEOUT_S) as smtp:
+    with smtplib.SMTP(
+        settings.SMTP_SERVER, settings.SMTP_PORT, timeout=_SMTP_TIMEOUT_S
+    ) as smtp:
         smtp.ehlo()
         smtp.starttls()
         smtp.ehlo()
@@ -65,11 +91,26 @@ def _send_via_smtp(from_addr: str, to_addr: str, subject: str,
         smtp.sendmail(from_addr, to_addr, msg.as_string())
 
 
+def _smtp_port_reachable() -> bool:
+    """Quick TCP probe to detect Render's blocked SMTP port."""
+    # If SMTP_BLOCKED env var is explicitly set, trust it without probing.
+    if os.getenv("SMTP_BLOCKED", "").strip().lower() == "true":
+        return False
+    try:
+        with socket.create_connection(
+            (settings.SMTP_SERVER, settings.SMTP_PORT), timeout=5
+        ):
+            return True
+    except (socket.timeout, OSError):
+        return False
+
+
 # ── HTML templates ─────────────────────────────────────────────────────────
 
-def _admin_html(d: dict, submitted_at: str) -> str:
+def _admin_html(d: dict, submitted_at: str, enquiry_id: str) -> str:
     rows = (
-        _row("Student Name", d.get("studentName"), 120)
+        _row("Enquiry ID", enquiry_id, 40)
+        + _row("Student Name", d.get("studentName"), 120)
         + _row("Parent Name", d.get("parentName"), 120)
         + _row("Mobile Number", f"+91 {_clean(d.get('mobile'), 20)}", 30)
         + _row("Email Address", d.get("email"), 254)
@@ -252,54 +293,133 @@ def _student_html(d: dict, submitted_at: str) -> str:
 </html>"""
 
 
-# ── public API ─────────────────────────────────────────────────────────────
+# ── Individual email senders ───────────────────────────────────────────────
 
-def send_enquiry_emails(enquiry_data: dict) -> tuple[bool, str]:
-    """Send admin notification + student confirmation via Gmail SMTP.
-
-    Returns (success, safe_error_message). Credentials are never logged or
-    included in the returned error string.
-    """
-    student_email = str(enquiry_data.get("email", "")).strip()
-
-    if not all([settings.EMAIL_USER, settings.EMAIL_PASSWORD]):
-        logger.error(
-            "[EMAIL] SMTP credentials not configured "
-            "(EMAIL_USER / EMAIL_PASSWORD missing in environment)"
+def _send_admin_email(enquiry_data: dict, submitted_at: str, enquiry_id: str) -> tuple[bool, str]:
+    """Send admin notification. Returns (success, error_message)."""
+    try:
+        logger.info("[EMAIL] Sending admin notification to %s", settings.ADMIN_EMAIL)
+        _send_via_smtp(
+            from_addr=settings.EMAIL_USER,
+            to_addr=settings.ADMIN_EMAIL,
+            subject=f"New Student Enquiry - Prayan Tutorials [{enquiry_id}]",
+            html_body=_admin_html(enquiry_data, submitted_at, enquiry_id),
+            reply_to=str(enquiry_data.get("email", settings.ADMIN_EMAIL)),
         )
-        return False, "Email service is not configured. Please contact us directly."
+        logger.info("[EMAIL] Admin notification sent successfully for enquiry %s", enquiry_id)
+        return True, ""
+    except smtplib.SMTPAuthenticationError:
+        logger.error("[EMAIL] SMTP authentication failed — check EMAIL_USER and EMAIL_PASSWORD")
+        return False, "smtp_auth_error"
+    except (socket.timeout, smtplib.SMTPConnectError, ConnectionRefusedError, OSError) as exc:
+        logger.error("[EMAIL] SMTP connection failed (port blocked?): %s", type(exc).__name__)
+        return False, "smtp_connection_error"
+    except Exception:
+        logger.exception("[EMAIL] Unexpected error sending admin notification for %s", enquiry_id)
+        return False, "smtp_unexpected_error"
+
+
+def _send_student_email(enquiry_data: dict, submitted_at: str, enquiry_id: str) -> tuple[bool, str]:
+    """Send student auto-reply. Returns (success, error_message)."""
+    student_email = str(enquiry_data.get("email", "")).strip()
+    if not student_email:
+        logger.warning("[EMAIL] No student email provided, skipping auto-reply")
+        return False, "no_student_email"
+    try:
+        logger.info("[EMAIL] Sending student auto-reply to %s", student_email)
+        _send_via_smtp(
+            from_addr=settings.EMAIL_USER,
+            to_addr=student_email,
+            subject="Thank You for Contacting Prayan Tutorials",
+            html_body=_student_html(enquiry_data, submitted_at),
+            reply_to=settings.ADMIN_EMAIL,
+        )
+        logger.info("[EMAIL] Student auto-reply sent for enquiry %s", enquiry_id)
+        return True, ""
+    except smtplib.SMTPAuthenticationError:
+        logger.error("[EMAIL] SMTP auth failed for student email (enquiry %s)", enquiry_id)
+        return False, "smtp_auth_error"
+    except (socket.timeout, smtplib.SMTPConnectError, ConnectionRefusedError, OSError) as exc:
+        logger.error("[EMAIL] SMTP connection failed for student email: %s", type(exc).__name__)
+        return False, "smtp_connection_error"
+    except Exception:
+        logger.exception("[EMAIL] Unexpected error sending student auto-reply for %s", enquiry_id)
+        return False, "smtp_unexpected_error"
+
+
+# ── Public API ─────────────────────────────────────────────────────────────
+
+def send_enquiry_emails(
+    enquiry_data: dict,
+    enquiry_id: str,
+    *,
+    skip_admin: bool = False,
+    skip_student: bool = False,
+) -> dict:
+    """
+    Send admin notification and/or student auto-reply via SMTP.
+
+    Parameters
+    ----------
+    enquiry_data : dict        Validated enquiry fields.
+    enquiry_id   : str        Unique ID for this enquiry (used in subject + logs).
+    skip_admin   : bool       True if admin email was already sent (e.g. via EmailJS).
+    skip_student : bool       True if student auto-reply was already sent via EmailJS.
+
+    Returns
+    -------
+    dict with keys:
+        admin_sent   : bool
+        student_sent : bool
+        smtp_blocked : bool   True if SMTP port appears unreachable on this host.
+        error        : str    Human-readable error (never includes credentials).
+    """
+    result: dict = {
+        "admin_sent": skip_admin,
+        "student_sent": skip_student,
+        "smtp_blocked": False,
+        "error": "",
+    }
+
+    if skip_admin and skip_student:
+        logger.info("[EMAIL] Both emails already sent via EmailJS — SMTP not needed.")
+        return result
+
+    # Credential check
+    if not settings.EMAIL_USER or not settings.EMAIL_PASSWORD:
+        logger.error(
+            "[EMAIL] SMTP credentials missing (EMAIL_USER / EMAIL_PASSWORD). "
+            "Set them as environment variables on Render."
+        )
+        result["error"] = "smtp_not_configured"
+        return result
+
+    # Connectivity probe
+    if not _smtp_port_reachable():
+        logger.warning(
+            "[EMAIL] SMTP port %s on %s is unreachable — "
+            "likely blocked by hosting provider (Render free tier restricts port 587). "
+            "Set SMTP_BLOCKED=true in env to suppress probe.",
+            settings.SMTP_PORT, settings.SMTP_SERVER,
+        )
+        result["smtp_blocked"] = True
+        result["error"] = "smtp_port_blocked"
+        return result
 
     submitted_at = datetime.now(ZoneInfo("Asia/Kolkata")).strftime("%d %b %Y, %I:%M %p IST")
 
     # Admin notification
-    try:
-        logger.info("[EMAIL] Sending admin email to %s", settings.ADMIN_EMAIL)
-        _send_via_smtp(
-            from_addr=settings.EMAIL_USER,
-            to_addr=settings.ADMIN_EMAIL,
-            subject="New Student Enquiry - Prayan Tutorials",
-            html_body=_admin_html(enquiry_data, submitted_at),
-            reply_to=student_email,
-        )
-        logger.info("[EMAIL] Admin email sent successfully")
-    except Exception:
-        logger.exception("[EMAIL] Unexpected error sending admin email")
-        return False, "Email delivery failed. Please try again later."
+    if not skip_admin:
+        ok, err = _send_admin_email(enquiry_data, submitted_at, enquiry_id)
+        result["admin_sent"] = ok
+        if not ok:
+            result["error"] = err
 
-    # Student confirmation
-    if student_email:
-        try:
-            logger.info("[EMAIL] Sending student confirmation to %s", student_email)
-            _send_via_smtp(
-                from_addr=settings.EMAIL_USER,
-                to_addr=student_email,
-                subject="Thank You for Contacting Prayan Tutorials",
-                html_body=_student_html(enquiry_data, submitted_at),
-                reply_to=settings.ADMIN_EMAIL,
-            )
-            logger.info("[EMAIL] Student confirmation sent successfully")
-        except Exception:
-            # Admin email already sent — log but don't fail the whole request.
-            logger.exception("[EMAIL] Student confirmation failed for %s", student_email)
+    # Student auto-reply
+    if not skip_student:
+        ok, err = _send_student_email(enquiry_data, submitted_at, enquiry_id)
+        result["student_sent"] = ok
+        if not ok and not result["error"]:
+            result["error"] = err
 
-    return True, ""
+    return result

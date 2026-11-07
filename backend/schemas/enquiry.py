@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 class EnquiryCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
+    # Core enquiry fields
     studentName: str = Field(..., min_length=2, max_length=120)
     parentName: str = Field(..., min_length=2, max_length=120)
     mobile: str = Field(..., pattern=r"^[6-9][0-9]{9}$")
@@ -17,9 +18,17 @@ class EnquiryCreate(BaseModel):
     school: str = Field(..., min_length=2, max_length=200)
     message: Optional[str] = Field(default=None, max_length=2000)
 
+    # EmailJS delivery flags — optional, sent by frontend after EmailJS attempt
+    emailjs_admin_sent: Optional[bool] = Field(default=False)
+    emailjs_student_sent: Optional[bool] = Field(default=False)
+
+    # Honeypot — must be empty; filled only by bots
+    honeypot: Optional[str] = Field(default=None)
+
 
 class EnquiryResponse(BaseModel):
     id: int
+    enquiry_id: str
     student_name: str
     created_at: datetime
 

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, CheckCircle, Loader2, User, Phone, Mail, MessageCircle, School } from 'lucide-react';
+import { Send, CheckCircle, AlertCircle, Loader2, User, Phone, Mail, MessageCircle, School } from 'lucide-react';
 import { submitEnquiry } from '../services/enquiryService';
 
 const schema = z.object({
@@ -23,6 +23,8 @@ const COOLDOWN_MS = 10000;
 const EnquiryForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPartial, setShowPartial] = useState(false);
+  const [partialMessage, setPartialMessage] = useState('');
   const [submitError, setSubmitError] = useState(null);
   const lastSubmitTime = useRef(0);
   const submissionInFlight = useRef(false);
@@ -33,7 +35,7 @@ const EnquiryForm = () => {
 
   const onSubmit = async (data) => {
     // Honeypot check
-    if (data._honeypot) return;
+    if (data.honeypot) return;
 
     // Cooldown check
     const now = Date.now();
@@ -47,18 +49,28 @@ const EnquiryForm = () => {
     submissionInFlight.current = true;
     setIsSubmitting(true);
     setSubmitError(null);
+    setShowPartial(false);
 
     try {
-      await submitEnquiry(data);
+      const result = await submitEnquiry(data);
       lastSubmitTime.current = Date.now();
-      setShowSuccess(true);
-      reset();
 
-      // WhatsApp notification after 3 seconds
-      const waMessage = `New Admission Enquiry:\nName: ${data.studentName}\nClass: ${data.className}\nCourse: ${data.course}`;
-      setTimeout(() => {
-        window.open(`https://wa.me/918291237037?text=${encodeURIComponent(waMessage)}`, '_blank');
-      }, 3000);
+      if (result.partial) {
+        // Enquiry saved to DB but email delivery failed — still actionable
+        setPartialMessage(result.message || 'Your enquiry was saved. Please call us to confirm.');
+        setShowPartial(true);
+        // Do NOT reset form — keep data visible for user reference
+      } else {
+        // Full success
+        setShowSuccess(true);
+        reset();
+
+        // WhatsApp notification after 3 seconds
+        const waMessage = `New Admission Enquiry:\nName: ${data.studentName}\nClass: ${data.className}\nCourse: ${data.course}`;
+        setTimeout(() => {
+          window.open(`https://wa.me/918291237037?text=${encodeURIComponent(waMessage)}`, '_blank');
+        }, 3000);
+      }
     } catch (err) {
       console.error('Enquiry submission failed', err);
       setSubmitError(err.message || 'Submission failed. Please try again or call us directly.');
@@ -108,7 +120,7 @@ const EnquiryForm = () => {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {/* Honeypot field — hidden from real users */}
-              <input type="text" {...register('_honeypot')} className="hidden" aria-hidden="true" tabIndex={-1} autoComplete="off" />
+              <input type="text" {...register('honeypot')} className="hidden" aria-hidden="true" tabIndex={-1} autoComplete="off" />
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Student Name */}
                 <div className="space-y-2">
@@ -233,6 +245,16 @@ const EnquiryForm = () => {
 
               {submitError && (
                 <p className="text-red-500 text-sm font-bold text-center">{submitError}</p>
+              )}
+
+              {showPartial && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 flex items-start space-x-3">
+                  <AlertCircle className="text-yellow-500 w-5 h-5 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm font-bold">Enquiry Saved — Email Delivery Issue</p>
+                    <p className="text-yellow-700 dark:text-yellow-300 text-xs mt-1">{partialMessage}</p>
+                  </div>
+                </div>
               )}
 
               <motion.button
