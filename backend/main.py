@@ -19,7 +19,7 @@ run_migrations(engine)
 app = FastAPI(title="Prayan Tutorials API", version="2.0.0")
 
 # ── CORS ──────────────────────────────────────────────────────────────────
-_PRODUCTION_FRONTEND = "https://prayan-tutorials-modern-coaching-9eut.onrender.com"
+_PRODUCTION_FRONTEND = "https://prayan-tutorials-modern-coaching-8qu6.onrender.com"
 
 _allowed_origins = [
     _PRODUCTION_FRONTEND,
